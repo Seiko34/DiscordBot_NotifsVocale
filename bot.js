@@ -29,8 +29,10 @@ client.on("voiceStateUpdate", (oldState, newState) => {
             const textChannel = channel.guild.channels.cache.get("1450145620131053742");
 
             if (textChannel) {
+                const link = `https://discord.com/channels/${channel.guild.id}/${channel.id}`;
+
                 textChannel.send(
-                    `🔊 **Un vocal vient de commencer** dans **${channel.name}**`
+                    `🔊 **Un vocal vient de commencer** : [${channel.name}](${link})`
                 );
             }
         }
