@@ -135,10 +135,7 @@ client.once("ready", () => {
   cleanupOldMessages();
 
   // Une fois par jour
-  //setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000);
-
-  // ⚠️ TEMPORAIRE — purge massive
-  setInterval(cleanupOldMessages, 60 * 1000); // toutes les minutes
+  setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000);
 
 });
 
