@@ -6,7 +6,7 @@ const fs = require("fs");
 // CONFIG
 // =======================
 
-const CHECK_TirexoURL = "https://www.tirexo.fit/";
+const CHECK_TIREXO_URL = "https://www.tirexo.fit/";
 const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";
 const TirexoURL_FILE = "./lastUrl_tirexo.txt";
 
@@ -60,30 +60,23 @@ async function checkRedirect() {
 
     const channel = await client.channels.fetch(DISCORD_TIREXO_CHANNEL_ID);
 
-    // Récupère les messages récents du bot
+    // 🔍 Tous les messages récents du bot
     const messages = await channel.messages.fetch({ limit: 30 });
     const botMessages = messages.filter(
       m => m.author.id === client.user.id
     );
 
-    // 🔎 Cherche un message qui contient EXACTEMENT l’URL actuelle
-    const existingMessage = botMessages.find(
-      m => m.content.includes(cleanFinalUrl)
-    );
-
-    // 🟢 CAS OK — message déjà présent avec la bonne URL → RIEN
-    if (existingMessage) {
-      lastDetectedUrl = cleanFinalUrl;
-      fs.writeFileSync(TirexoURL_FILE, cleanFinalUrl, "utf8");
+    // 🟢 CAS 1 — message déjà présent ET URL identique → RIEN
+    if (botMessages.size === 1 && cleanFinalUrl === lastDetectedUrl) {
       return;
     }
 
-    // 🔥 Sinon : suppression de TOUS les messages du bot
+    // 🔥 CAS 2 — URL différente OU message manquant → nettoyage
     for (const msg of botMessages.values()) {
       await msg.delete().catch(() => {});
     }
 
-    // ✨ Nouveau message unique
+    // ✨ Création du message unique
     await channel.send(
       `📢 **URL actuelle détectée :** ${cleanFinalUrl}`
     );
