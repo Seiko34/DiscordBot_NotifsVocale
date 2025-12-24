@@ -7,7 +7,7 @@ const fs = require("fs");
 // =======================
 
 // URL DE RÉFÉRENCE (ancien domaine connu)
-const CHECK_URL = "https://tirexo.fit";
+const CHECK_URL = "https://tirexo.fit/test";
 
 const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";      // salon texte Tirexo
 const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";  // salon notif vocal
