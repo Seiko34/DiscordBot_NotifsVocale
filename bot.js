@@ -6,12 +6,15 @@ const fs = require("fs");
 // CONFIG
 // =======================
 
-// URL DE RÉFÉRENCE (ancien domaine connu)
+// URL DE DÉPART À SURVEILLER
 const CHECK_URL = "https://tirexo.fit/test";
 
-const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";      // salon texte Tirexo
-const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";  // salon notif vocal
-const DOMAIN_FILE = "./lastDomain.txt";
+// Salons Discord
+const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";
+const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
+
+// Fichier mémoire
+const URL_FILE = "./lastUrl.txt";
 
 // =======================
 // DISCORD CLIENT
@@ -26,24 +29,24 @@ const client = new Client({
 });
 
 // =======================
-// DOMAIN MEMORY
+// URL MEMORY
 // =======================
 
-let lastDetectedDomain = null;
+let lastDetectedUrl = null;
 
-// Charger le dernier domaine sauvegardé
-if (fs.existsSync(DOMAIN_FILE)) {
-  lastDetectedDomain = fs.readFileSync(DOMAIN_FILE, "utf8").trim();
+// Charger la dernière URL sauvegardée
+if (fs.existsSync(URL_FILE)) {
+  lastDetectedUrl = fs.readFileSync(URL_FILE, "utf8").trim();
 }
 
 // =======================
-// DOMAIN REDIRECT CHECK
+// REDIRECT CHECK
 // =======================
 
-async function checkDomainRedirect() {
+async function checkRedirect() {
   try {
     const res = await axios.get(CHECK_URL, {
-      maxRedirects: 5,
+      maxRedirects: 10,
       timeout: 10000,
       validateStatus: null,
     });
@@ -51,17 +54,14 @@ async function checkDomainRedirect() {
     const finalUrl = res.request?.res?.responseUrl;
     if (!finalUrl) return;
 
-    const finalDomain = new URL(finalUrl)
-      .hostname
-      .replace(/^www\./, "")
-      .toLowerCase();
+    const cleanFinalUrl = finalUrl.toLowerCase();
 
-    // Aucun changement
-    if (finalDomain === lastDetectedDomain) return;
+    // Aucun changement → on sort
+    if (cleanFinalUrl === lastDetectedUrl) return;
 
-    // Mise à jour mémoire + fichier
-    lastDetectedDomain = finalDomain;
-    fs.writeFileSync(DOMAIN_FILE, finalDomain, "utf8");
+    // Mise à jour mémoire
+    lastDetectedUrl = cleanFinalUrl;
+    fs.writeFileSync(URL_FILE, cleanFinalUrl, "utf8");
 
     const tirexoChannel = await client.channels
       .fetch(DISCORD_TIREXO_CHANNEL_ID)
@@ -70,11 +70,11 @@ async function checkDomainRedirect() {
     if (!tirexoChannel) return;
 
     await tirexoChannel.send(
-      `📢 **Nouveau nom de domaine détecté :** https://${finalDomain}`
+      `📢 **Nouvelle URL détectée :** ${cleanFinalUrl}`
     );
 
   } catch (err) {
-    console.error("❌ Erreur check domaine:", err.message);
+    console.error("❌ Erreur check redirect:", err.message);
   }
 }
 
@@ -86,10 +86,10 @@ client.once("ready", () => {
   console.log(`✅ Bot connecté : ${client.user.tag}`);
 
   // Premier check après 30 secondes
-  setTimeout(checkDomainRedirect, 30_000);
+  setTimeout(checkRedirect, 30_000);
 
   // Puis toutes les 6 heures
-  setInterval(checkDomainRedirect, 6 * 60 * 60 * 1000);
+  setInterval(checkRedirect, 6 * 60 * 60 * 1000);
 });
 
 // =======================
@@ -116,7 +116,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
           `🔊 **Un vocal vient de commencer** : <#${channel.id}>`
         );
 
-        // Suppression auto après 48h
+        // Auto-suppression après 48h
         setTimeout(() => {
           msg.delete().catch(() => {});
         }, 48 * 60 * 60 * 1000);
