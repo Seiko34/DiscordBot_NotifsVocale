@@ -13,6 +13,8 @@ const DISCORD_MOVIX_CHANNEL_ID = "1453447650421506170";
 
 const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
 
+const CLEANUP_POKEMMO = "1304579427467788329";
+
 // =======================
 // DISCORD CLIENT
 // =======================
@@ -128,6 +130,13 @@ client.once("ready", () => {
   // Movix → 1 fois par jour
   setTimeout(checkRedirectMovix, 60_000);
   setInterval(checkRedirectMovix, 24 * 60 * 60 * 1000);
+
+  // Nettoyage au démarrage
+  cleanupOldMessages();
+
+  // Puis toutes les heures
+  setInterval(cleanupOldMessages, 60 * 60 * 1000);
+
 });
 
 // =======================
@@ -221,6 +230,34 @@ async function refreshWithStatus(channelId, checkFn, label) {
 
   // Appel de la logique EXISTANTE (inchangée)
   await checkFn();
+}
+
+// =======================
+// CLEAN 48h MESSAGES POKEMMO
+// =======================
+
+
+async function cleanupOldMessages() {
+  try {
+    const channel = await client.channels.fetch(CLEANUP_POKEMMO);
+    if (!channel || !channel.isTextBased()) return;
+
+    const now = Date.now();
+    const limitTime = 48 * 60 * 60 * 1000; // 48h
+
+    const messages = await channel.messages.fetch({ limit: 100 });
+
+    for (const message of messages.values()) {
+      const age = now - message.createdTimestamp;
+
+      if (age > limitTime) {
+        await message.delete().catch(() => {});
+      }
+    }
+
+  } catch (err) {
+    console.error("❌ Erreur cleanup messages:", err.message);
+  }
 }
 
 
