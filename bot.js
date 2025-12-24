@@ -7,7 +7,7 @@ const fs = require("fs");
 // =======================
 
 // URL DE DÉPART À SURVEILLER
-const CHECK_URL = "https://www.tirexo.fit/";
+const CHECK_URL = "https://www.tirexo.fit/test";
 
 // Salons Discord
 const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";
@@ -15,6 +15,7 @@ const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
 
 // Fichier mémoire
 const URL_FILE = "./lastUrl.txt";
+const MSG_FILE = "./lastMessageId.txt";
 
 // =======================
 // DISCORD CLIENT
@@ -29,7 +30,7 @@ const client = new Client({
 });
 
 // =======================
-// URL MEMORY
+// MEMORY
 // =======================
 
 let lastDetectedUrl = null;
@@ -38,6 +39,10 @@ let lastDetectedUrl = null;
 if (fs.existsSync(URL_FILE)) {
   lastDetectedUrl = fs.readFileSync(URL_FILE, "utf8").trim();
 }
+
+let lastMessageId = fs.existsSync(MSG_FILE)
+  ? fs.readFileSync(MSG_FILE, "utf8").trim()
+  : null;
 
 // =======================
 // REDIRECT CHECK
@@ -51,7 +56,7 @@ async function checkRedirect() {
       validateStatus: null,
     });
 
-    const finalUrl = res.request?.res?.responseUrl;
+    const finalUrl = res.request?._redirectable?._currentUrl;
     if (!finalUrl) return;
 
     const cleanFinalUrl = finalUrl.toLowerCase();
@@ -59,19 +64,34 @@ async function checkRedirect() {
     // Aucun changement → on sort
     if (cleanFinalUrl === lastDetectedUrl) return;
 
-    // Mise à jour mémoire
-    lastDetectedUrl = cleanFinalUrl;
-    fs.writeFileSync(URL_FILE, cleanFinalUrl, "utf8");
-
-    const tirexoChannel = await client.channels
+    const channel = await client.channels
       .fetch(DISCORD_TIREXO_CHANNEL_ID)
       .catch(() => null);
 
-    if (!tirexoChannel) return;
+    if (!channel) return;
 
-    await tirexoChannel.send(
+    // 🔥 Supprimer l'ancien message si existant
+    if (lastMessageId) {
+      const oldMsg = await channel.messages
+        .fetch(lastMessageId)
+        .catch(() => null);
+
+      if (oldMsg) {
+        await oldMsg.delete().catch(() => {});
+      }
+    }
+
+    // ✨ Nouveau message
+    const newMsg = await channel.send(
       `📢 **Nouvelle URL détectée :** ${cleanFinalUrl}`
     );
+
+    // 💾 Sauvegarde
+    lastDetectedUrl = cleanFinalUrl;
+    lastMessageId = newMsg.id;
+
+    fs.writeFileSync(URL_FILE, cleanFinalUrl, "utf8");
+    fs.writeFileSync(MSG_FILE, newMsg.id, "utf8");
 
   } catch (err) {
     console.error("❌ Erreur check redirect:", err.message);
