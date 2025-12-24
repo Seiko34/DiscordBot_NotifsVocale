@@ -6,10 +6,11 @@ const fs = require("fs");
 // CONFIG
 // =======================
 
-const CHECK_URL = "https://www.tirexo.fit/";
+const CHECK_TirexoURL = "https://www.tirexo.fit/";
 const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";
-const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
 const TirexoURL_FILE = "./lastUrl_tirexo.txt";
+
+const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
 
 // =======================
 // DISCORD CLIENT
@@ -43,7 +44,7 @@ async function checkRedirect() {
   isChecking = true;
 
   try {
-    const res = await axios.get(CHECK_URL, {
+    const res = await axios.get(CHECK_TIREXO_URL, {
       maxRedirects: 10,
       timeout: 10000,
       validateStatus: null,
@@ -59,20 +60,30 @@ async function checkRedirect() {
 
     const channel = await client.channels.fetch(DISCORD_TIREXO_CHANNEL_ID);
 
-    const messages = await channel.messages.fetch({ limit: 20 });
-    const botMessage = messages.find(
+    // Récupère les messages récents du bot
+    const messages = await channel.messages.fetch({ limit: 30 });
+    const botMessages = messages.filter(
       m => m.author.id === client.user.id
     );
 
-    // 🔹 Message existe + URL identique → RIEN
-    if (botMessage && cleanFinalUrl === lastDetectedUrl) return;
+    // 🔎 Cherche un message qui contient EXACTEMENT l’URL actuelle
+    const existingMessage = botMessages.find(
+      m => m.content.includes(cleanFinalUrl)
+    );
 
-    // 🔹 Supprimer l’ancien message s’il existe
-    if (botMessage) {
-      await botMessage.delete().catch(() => {});
+    // 🟢 CAS OK — message déjà présent avec la bonne URL → RIEN
+    if (existingMessage) {
+      lastDetectedUrl = cleanFinalUrl;
+      fs.writeFileSync(TirexoURL_FILE, cleanFinalUrl, "utf8");
+      return;
     }
 
-    // 🔹 Créer le message unique
+    // 🔥 Sinon : suppression de TOUS les messages du bot
+    for (const msg of botMessages.values()) {
+      await msg.delete().catch(() => {});
+    }
+
+    // ✨ Nouveau message unique
     await channel.send(
       `📢 **URL actuelle détectée :** ${cleanFinalUrl}`
     );
