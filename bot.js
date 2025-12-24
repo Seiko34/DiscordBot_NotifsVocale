@@ -7,6 +7,10 @@ const axios = require("axios");
 
 const CHECK_TIREXO_URL = "https://www.tirexo.fit/";
 const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";
+
+const CHECK_MOVIX_URL = "https://movix.club/";
+const DISCORD_MOVIX_CHANNEL_ID = "1453447650421506170";
+
 const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
 
 // =======================
@@ -22,10 +26,10 @@ const client = new Client({
 });
 
 // =======================
-// REDIRECT CHECK (SOURCE DE VÉRITÉ = DISCORD)
+// REDIRECT CHECK
 // =======================
 
-async function checkRedirect() {
+async function checkRedirectTirexo() {
   try {
     const res = await axios.get(CHECK_TIREXO_URL, {
       maxRedirects: 10,
@@ -67,6 +71,47 @@ async function checkRedirect() {
   }
 }
 
+async function checkRedirectMovix() {
+  try {
+    const res = await axios.get(CHECK_MOVIX_URL, {
+      maxRedirects: 10,
+      timeout: 10000,
+      validateStatus: null,
+    });
+
+    const finalUrl =
+      res.request?.res?.responseUrl ||
+      res.request?._redirectable?._currentUrl;
+
+    if (!finalUrl) return;
+
+    const cleanFinalUrl = finalUrl.toLowerCase().replace(/\/$/, "");
+
+    const channel = await client.channels.fetch(DISCORD_MOVIX_CHANNEL_ID);
+
+    const messages = await channel.messages.fetch({ limit: 20 });
+    const botMessage = messages.find(
+      m => m.author.id === client.user.id
+    );
+
+    if (botMessage) {
+      if (!botMessage.content.includes(cleanFinalUrl)) {
+        await botMessage.edit(
+          `🎬 **URL actuelle de Movix :** ${cleanFinalUrl}`
+        );
+      }
+      return;
+    }
+
+    await channel.send(
+      `🎬 **URL actuelle de Movix :** ${cleanFinalUrl}`
+    );
+
+  } catch (err) {
+    console.error("❌ Erreur check Movix:", err.message);
+  }
+}
+
 // =======================
 // BOT READY
 // =======================
@@ -74,12 +119,17 @@ async function checkRedirect() {
 client.once("ready", () => {
   console.log(`✅ Bot connecté : ${client.user.tag}`);
 
-  setTimeout(checkRedirect, 30_000);
-  setInterval(checkRedirect, 6 * 60 * 60 * 1000);
+  // Tirexo → toutes les 6h
+  setTimeout(checkRedirectTirexo, 30_000);
+  setInterval(checkRedirectTirexo, 6 * 60 * 60 * 1000);
+
+  // Movix → 1 fois par jour
+  setTimeout(checkRedirectMovix, 60_000);
+  setInterval(checkRedirectMovix, 24 * 60 * 60 * 1000);
 });
 
 // =======================
-// VOCAL NOTIFICATION (inchangé)
+// VOCAL NOTIFICATION 
 // =======================
 
 client.on("voiceStateUpdate", async (oldState, newState) => {
