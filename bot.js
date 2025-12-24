@@ -1,15 +1,16 @@
 const { Client, GatewayIntentBits } = require("discord.js");
 const axios = require("axios");
-const cheerio = require("cheerio");
 const fs = require("fs");
 
 // =======================
 // CONFIG
 // =======================
 
-const TELEGRAM_URL = "https://t.me/s/tirexoofficiel";
-const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";
-const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
+// URL DE RÉFÉRENCE (ancien domaine connu)
+const CHECK_URL = "https://tirexo.city";
+
+const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";      // salon texte Tirexo
+const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";  // salon notif vocal
 const DOMAIN_FILE = "./lastDomain.txt";
 
 // =======================
@@ -30,56 +31,50 @@ const client = new Client({
 
 let lastDetectedDomain = null;
 
-// Charger le dernier domaine sauvegardé (si existant)
+// Charger le dernier domaine sauvegardé
 if (fs.existsSync(DOMAIN_FILE)) {
   lastDetectedDomain = fs.readFileSync(DOMAIN_FILE, "utf8").trim();
 }
 
 // =======================
-// TELEGRAM CHECK
+// DOMAIN REDIRECT CHECK
 // =======================
 
-async function checkTelegram() {
+async function checkDomainRedirect() {
   try {
-    const res = await axios.get(TELEGRAM_URL);
-    const $ = cheerio.load(res.data);
+    const res = await axios.get(CHECK_URL, {
+      maxRedirects: 5,
+      timeout: 10000,
+      validateStatus: null,
+    });
 
-    const firstPost = $(".tgme_widget_message").first();
-    if (!firstPost.length) return;
+    const finalUrl = res.request?.res?.responseUrl;
+    if (!finalUrl) return;
 
-    const text = firstPost
-      .find(".tgme_widget_message_text")
-      .text()
-      .trim();
+    const finalDomain = new URL(finalUrl)
+      .hostname
+      .replace(/^www\./, "")
+      .toLowerCase();
 
-    if (!text) return;
-
-    // Extraction du domaine (ex: tirexo.com)
-    const match = text.match(
-      /\b[a-z0-9-]+\.(com|net|org|xyz|lol|site|cc|io)\b/i
-    );
-    if (!match) return;
-
-    const domain = match[0].toLowerCase();
-
-    // Aucun changement → on sort
-    if (domain === lastDetectedDomain) return;
+    // Aucun changement
+    if (finalDomain === lastDetectedDomain) return;
 
     // Mise à jour mémoire + fichier
-    lastDetectedDomain = domain;
-    fs.writeFileSync(DOMAIN_FILE, domain);
+    lastDetectedDomain = finalDomain;
+    fs.writeFileSync(DOMAIN_FILE, finalDomain, "utf8");
 
-    const discordChannel = await client.channels
+    const tirexoChannel = await client.channels
       .fetch(DISCORD_TIREXO_CHANNEL_ID)
       .catch(() => null);
 
-    if (!discordChannel) return;
+    if (!tirexoChannel) return;
 
-    await discordChannel.send(
-      `📢 **Nouveau nom de domaine détecté :** https://${domain}`
+    await tirexoChannel.send(
+      `📢 **Nouveau nom de domaine détecté :** https://${finalDomain}`
     );
+
   } catch (err) {
-    console.error("❌ Erreur Telegram:", err.message);
+    console.error("❌ Erreur check domaine:", err.message);
   }
 }
 
@@ -90,11 +85,11 @@ async function checkTelegram() {
 client.once("ready", () => {
   console.log(`✅ Bot connecté : ${client.user.tag}`);
 
-  // 1er check après 10s
-  setTimeout(checkTelegram, 10_000);
+  // Premier check après 30 secondes
+  setTimeout(checkDomainRedirect, 30_000);
 
-  // Puis toutes les 24h
-  setInterval(checkTelegram, 24 * 60 * 60 * 1000);
+  // Puis toutes les 6 heures
+  setInterval(checkDomainRedirect, 6 * 60 * 60 * 1000);
 });
 
 // =======================
@@ -110,14 +105,14 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
     ).size;
 
     if (humanCount === 1) {
-      const textChannel = await channel.guild.channels
+      const logChannel = await channel.guild.channels
         .fetch(DISCORD_VOCAL_LOG_CHANNEL_ID)
         .catch(() => null);
 
-      if (!textChannel) return;
+      if (!logChannel) return;
 
       try {
-        const msg = await textChannel.send(
+        const msg = await logChannel.send(
           `🔊 **Un vocal vient de commencer** : <#${channel.id}>`
         );
 
