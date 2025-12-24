@@ -134,8 +134,11 @@ client.once("ready", () => {
   // Nettoyage au démarrage
   cleanupOldMessages();
 
-  // Puis toutes les heures
-  setInterval(cleanupOldMessages, 60 * 60 * 1000);
+  // Une fois par jour
+  //setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000);
+
+  // ⚠️ TEMPORAIRE — purge massive
+  setInterval(cleanupOldMessages, 60 * 1000); // toutes les minutes
 
 });
 
@@ -243,7 +246,7 @@ async function cleanupOldMessages() {
     if (!channel || !channel.isTextBased()) return;
 
     const now = Date.now();
-    const limitTime = 48 * 60 * 60 * 1000; // 48h
+    const limitTime = 7 * 24 * 60 * 60 * 1000;  // 7 jours
 
     const messages = await channel.messages.fetch({ limit: 100 });
 
