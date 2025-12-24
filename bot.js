@@ -104,7 +104,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
 
   try {
     const msg = await logChannel.send(
-      `🔊 **Un vocal vient de commencer** : ${channel}`
+      `🔊 **Un vocal vient de commencer** : ${channel.name}`
     );
 
     // Suppression auto après 48h
