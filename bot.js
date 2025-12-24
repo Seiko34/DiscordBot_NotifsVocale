@@ -39,10 +39,6 @@ if (fs.existsSync(URL_FILE)) {
   lastDetectedUrl = fs.readFileSync(URL_FILE, "utf8").trim();
 }
 
-let lastMessageId = fs.existsSync(MSG_FILE)
-  ? fs.readFileSync(MSG_FILE, "utf8").trim()
-  : null;
-
 let isChecking = false;
 
 // =======================
@@ -66,27 +62,43 @@ async function checkRedirect() {
 
     if (!finalUrl) return;
 
-    const cleanFinalUrl = finalUrl.toLowerCase().replace(/\/$/, "");
-
-    // 🔴 Si l’URL n’a pas changé → on sort DIRECT
-    if (cleanFinalUrl === lastDetectedUrl) return;
+    const cleanFinalUrl = finalUrl
+      .toLowerCase()
+      .replace(/\/$/, "");
 
     const channel = await client.channels.fetch(DISCORD_TIREXO_CHANNEL_ID);
 
-    // 🔥 SUPPRESSION DE TOUS LES MESSAGES DU BOT
+    // 🔎 Récupère les messages du bot
     const messages = await channel.messages.fetch({ limit: 50 });
-    const botMessages = messages.filter(m => m.author.id === client.user.id);
+    const botMessages = messages.filter(
+      (m) => m.author.id === client.user.id
+    );
 
+    const hasBotMessage = botMessages.size > 0;
+
+    // 🟢 CAS 1 — aucun message du bot → on écrit le message initial
+    if (!hasBotMessage) {
+      await channel.send(
+        `📢 **URL actuelle détectée :** ${cleanFinalUrl}`
+      );
+
+      lastDetectedUrl = cleanFinalUrl;
+      fs.writeFileSync(URL_FILE, cleanFinalUrl, "utf8");
+      return;
+    }
+
+    // 🟢 CAS 2 — message présent ET URL identique → on ne fait RIEN
+    if (cleanFinalUrl === lastDetectedUrl) return;
+
+    // 🔄 CAS 3 — message présent ET URL différente → nettoyage + recréation
     for (const msg of botMessages.values()) {
       await msg.delete().catch(() => {});
     }
 
-    // ✨ Nouveau message UNIQUE
     await channel.send(
       `📢 **Nouvelle URL détectée :** ${cleanFinalUrl}`
     );
 
-    // 💾 Mémoire fiable
     lastDetectedUrl = cleanFinalUrl;
     fs.writeFileSync(URL_FILE, cleanFinalUrl, "utf8");
 
@@ -96,7 +108,6 @@ async function checkRedirect() {
     isChecking = false;
   }
 }
-
 // =======================
 // BOT READY
 // =======================
