@@ -40,9 +40,6 @@ if (fs.existsSync(TirexoURL_FILE)) {
 // =======================
 
 async function checkRedirect() {
-  if (isChecking) return;
-  isChecking = true;
-
   try {
     const res = await axios.get(CHECK_TIREXO_URL, {
       maxRedirects: 10,
@@ -60,36 +57,32 @@ async function checkRedirect() {
 
     const channel = await client.channels.fetch(DISCORD_TIREXO_CHANNEL_ID);
 
-    // 🔍 Tous les messages récents du bot
-    const messages = await channel.messages.fetch({ limit: 30 });
-    const botMessages = messages.filter(
+    // 🔍 Cherche le message du bot
+    const messages = await channel.messages.fetch({ limit: 20 });
+    const botMessage = messages.find(
       m => m.author.id === client.user.id
     );
 
-    // 🟢 CAS 1 — message déjà présent ET URL identique → RIEN
-    if (botMessages.size === 1 && cleanFinalUrl === lastDetectedUrl) {
+    // 🟢 Message existant → on édite
+    if (botMessage) {
+      if (!botMessage.content.includes(cleanFinalUrl)) {
+        await botMessage.edit(
+          `📢 **URL actuelle de Tirexo :** ${cleanFinalUrl}`
+        );
+      }
       return;
     }
 
-    // 🔥 CAS 2 — URL différente OU message manquant → nettoyage
-    for (const msg of botMessages.values()) {
-      await msg.delete().catch(() => {});
-    }
-
-    // ✨ Création du message unique
+    // 🆕 Aucun message → création
     await channel.send(
-      `📢 **URL actuelle détectée :** ${cleanFinalUrl}`
+      `📢 **URL actuelle de Tirexo :** ${cleanFinalUrl}`
     );
-
-    lastDetectedUrl = cleanFinalUrl;
-    fs.writeFileSync(TirexoURL_FILE, cleanFinalUrl, "utf8");
 
   } catch (err) {
     console.error("❌ Erreur check redirect:", err.message);
-  } finally {
-    isChecking = false;
   }
 }
+
 
 // =======================
 // BOT READY
