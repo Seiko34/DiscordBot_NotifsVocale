@@ -51,7 +51,7 @@ let isChecking = false;
 // =======================
 
 async function checkRedirect() {
-  if (isChecking) return; // 🔒 empêche les appels concurrents
+  if (isChecking) return;
   isChecking = true;
 
   try {
@@ -61,17 +61,15 @@ async function checkRedirect() {
       validateStatus: null,
     });
 
-    // URL finale après redirections
     const finalUrl =
       res.request?.res?.responseUrl ||
       res.request?._redirectable?._currentUrl;
 
     if (!finalUrl) return;
 
-    // Normalisation stricte
     const cleanFinalUrl = finalUrl
       .toLowerCase()
-      .replace(/\/$/, ""); // supprime le slash final
+      .replace(/\/$/, "");
 
     const channel = await client.channels
       .fetch(DISCORD_TIREXO_CHANNEL_ID)
@@ -79,16 +77,8 @@ async function checkRedirect() {
 
     if (!channel) return;
 
-    // 🔎 Vérifie si le message mémorisé existe réellement
-    let storedMessage = null;
-    if (lastMessageId) {
-      storedMessage = await channel.messages
-        .fetch(lastMessageId)
-        .catch(() => null);
-    }
-
-    // 🟢 CAS 1 — aucun message stocké → on crée le message initial
-    if (!storedMessage) {
+    // 🔎 CAS 0 — première exécution (aucune URL en mémoire)
+    if (!lastDetectedUrl) {
       const msg = await channel.send(
         `📢 **URL actuelle détectée :** ${cleanFinalUrl}`
       );
@@ -101,11 +91,16 @@ async function checkRedirect() {
       return;
     }
 
-    // 🟢 CAS 2 — message existe ET URL identique → on ne fait RIEN
+    // 🟢 CAS 1 — URL identique → RIEN
     if (cleanFinalUrl === lastDetectedUrl) return;
 
-    // 🔄 CAS 3 — URL différente → suppression + recréation
-    await storedMessage.delete().catch(() => {});
+    // 🔄 CAS 2 — URL différente → suppression + nouveau message
+    if (lastMessageId) {
+      const oldMsg = await channel.messages
+        .fetch(lastMessageId)
+        .catch(() => null);
+      if (oldMsg) await oldMsg.delete().catch(() => {});
+    }
 
     const newMsg = await channel.send(
       `📢 **Nouvelle URL détectée :** ${cleanFinalUrl}`
@@ -120,7 +115,7 @@ async function checkRedirect() {
   } catch (err) {
     console.error("❌ Erreur check redirect:", err.message);
   } finally {
-    isChecking = false; // 🔓 déverrouillage garanti
+    isChecking = false;
   }
 }
 
