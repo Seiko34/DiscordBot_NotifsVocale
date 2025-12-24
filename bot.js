@@ -47,7 +47,8 @@ if (fs.existsSync(URL_FILE)) {
   lastDetectedUrl = fs.readFileSync(URL_FILE, "utf8").trim();
 }
 
-let isChecking = false;
+let isCheckingTirexo = false;
+let isCheckingMovix = false;
 
 
 // =======================
@@ -68,8 +69,8 @@ if (fs.existsSync(MOVIX_URL_FILE)) {
 // TIREXO
 
 async function checkRedirect() {
-  if (isChecking) return;
-  isChecking = true;
+  if (isCheckingTirexo) return;
+  isCheckingTirexo = true;
 
   try {
     const res = await axios.get(CHECK_URL, {
@@ -113,70 +114,13 @@ async function checkRedirect() {
   } catch (err) {
     console.error("❌ Erreur check redirect:", err.message);
   } finally {
-    isChecking = false;
+    isCheckingTirexo = false;
   }
 }
 
 // MOVIX
 
-async function checkRedirectMovix() {
-  try {
-    const res = await axios.get(CHECK_URL_MOVIX, {
-      maxRedirects: 10,
-      timeout: 10000,
-      validateStatus: null,
-    });
 
-    const finalUrl =
-      res.request?.res?.responseUrl ||
-      res.request?._redirectable?._currentUrl;
-
-    if (!finalUrl) return;
-
-    const cleanFinalUrl = finalUrl
-      .toLowerCase()
-      .replace(/\/$/, "");
-
-    const channel = await client.channels
-      .fetch(DISCORD_MOVIX_CHANNEL_ID)
-      .catch(() => null);
-
-    if (!channel) return;
-
-    const messages = await channel.messages.fetch({ limit: 50 });
-    const botMessages = messages.filter(
-      (m) => m.author.id === client.user.id
-    );
-
-    const hasBotMessage = botMessages.size > 0;
-
-    if (!hasBotMessage) {
-      await channel.send(
-        `🎬 **URL actuelle Movix :** ${cleanFinalUrl}`
-      );
-
-      lastDetectedUrlMovix = cleanFinalUrl;
-      fs.writeFileSync(MOVIX_URL_FILE, cleanFinalUrl, "utf8");
-      return;
-    }
-
-    if (cleanFinalUrl === lastDetectedUrlMovix) return;
-
-    for (const msg of botMessages.values()) {
-      await msg.delete().catch(() => {});
-    }
-
-    await channel.send(
-      `🎬 **Nouvelle URL Movix détectée :** ${cleanFinalUrl}`
-    );
-
-    lastDetectedUrlMovix = cleanFinalUrl;
-    fs.writeFileSync(MOVIX_URL_FILE, cleanFinalUrl, "utf8");
-
-  } catch (err) {
-    console.error("❌ Erreur check Movix:", err.message);
-  }
-}
 
 
 // =======================
@@ -192,9 +136,6 @@ client.once("ready", () => {
   // Puis toutes les 6 heures
   setInterval(checkRedirect, 6 * 60 * 60 * 1000);
 
-    // Movix
-  setTimeout(checkRedirectMovix, 45_000);
-  setInterval(checkRedirectMovix, 6 * 60 * 60 * 1000);
 });
 
 // =======================
