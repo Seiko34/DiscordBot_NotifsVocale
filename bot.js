@@ -23,6 +23,7 @@ const client = new Client({
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessages,
   ],
 });
 
@@ -168,42 +169,59 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
   }
 });
 
-async function forceRefresh(channelId, checkFn) {
-  const channel = await client.channels.fetch(channelId);
-
-  // Supprimer les anciens messages du bot
-  const messages = await channel.messages.fetch({ limit: 20 });
-  const botMessages = messages.filter(
-    m => m.author.id === client.user.id
-  );
-
-  for (const msg of botMessages.values()) {
-    await msg.delete().catch(() => {});
-  }
-
-  // Refaire un check propre
-  await checkFn();
-}
-
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
   if (message.content !== "!refresh") return;
 
-  // Supprimer la commande
+  // Supprimer la commande utilisateur
   await message.delete().catch(() => {});
 
-  // Tirexo
   if (message.channel.id === DISCORD_TIREXO_CHANNEL_ID) {
-    await forceRefresh(DISCORD_TIREXO_CHANNEL_ID, checkRedirectTirexo);
+    await refreshWithStatus(
+      DISCORD_TIREXO_CHANNEL_ID,
+      checkRedirectTirexo,
+      "Tirexo"
+    );
     return;
   }
 
-  // Movix
   if (message.channel.id === DISCORD_MOVIX_CHANNEL_ID) {
-    await forceRefresh(DISCORD_MOVIX_CHANNEL_ID, checkRedirectMovix);
+    await refreshWithStatus(
+      DISCORD_MOVIX_CHANNEL_ID,
+      checkRedirectMovix,
+      "Movix"
+    );
     return;
   }
 });
+
+async function refreshWithStatus(channelId, checkFn, label) {
+  const channel = await client.channels.fetch(channelId);
+
+  // Cherche le message du bot
+  const messages = await channel.messages.fetch({ limit: 10 });
+  let botMessage = messages.find(
+    (m) => m.author.id === client.user.id
+  );
+
+  // S’il existe, on met "check en cours"
+  if (botMessage) {
+    await botMessage.edit(`⏳ **Vérification de ${label} en cours...**`);
+  }
+
+  // Sinon, on crée un message temporaire
+  if (!botMessage) {
+    botMessage = await channel.send(
+      `⏳ **Vérification de ${label} en cours...**`
+    );
+  }
+
+  // Laisse respirer Discord (optionnel mais sain)
+  await new Promise(res => setTimeout(res, 500));
+
+  // Appel de la logique EXISTANTE (inchangée)
+  await checkFn();
+}
 
 
 // =======================
