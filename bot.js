@@ -7,7 +7,7 @@ const fs = require("fs");
 // =======================
 
 // URL DE DÉPART À SURVEILLER
-const CHECK_URL = "https://tirexo.fit/test";
+const CHECK_URL = "https://www.tirexo.fit/";
 
 // Salons Discord
 const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";
