@@ -1,6 +1,5 @@
 const { Client, GatewayIntentBits } = require("discord.js");
 const axios = require("axios");
-const fs = require("fs");
 
 // =======================
 // CONFIG
@@ -8,8 +7,6 @@ const fs = require("fs");
 
 const CHECK_TIREXO_URL = "https://www.tirexo.fit/";
 const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";
-const TirexoURL_FILE = "./lastUrl_tirexo.txt";
-
 const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
 
 // =======================
@@ -25,18 +22,7 @@ const client = new Client({
 });
 
 // =======================
-// MEMORY
-// =======================
-
-let lastDetectedUrl = null;
-let isChecking = false;
-
-if (fs.existsSync(TirexoURL_FILE)) {
-  lastDetectedUrl = fs.readFileSync(TirexoURL_FILE, "utf8").trim();
-}
-
-// =======================
-// REDIRECT CHECK
+// REDIRECT CHECK (SOURCE DE VÉRITÉ = DISCORD)
 // =======================
 
 async function checkRedirect() {
@@ -57,32 +43,29 @@ async function checkRedirect() {
 
     const channel = await client.channels.fetch(DISCORD_TIREXO_CHANNEL_ID);
 
-    // 🔍 Cherche le message du bot
-    const messages = await channel.messages.fetch({ limit: 20 });
+    // 🔍 Récupère le message du bot s’il existe
+    const messages = await channel.messages.fetch({ limit: 10 });
     const botMessage = messages.find(
-      m => m.author.id === client.user.id
+      (m) => m.author.id === client.user.id
     );
 
-    // 🟢 Message existant → on édite
+    const content = `📢 **URL actuelle de Tirexo :** ${cleanFinalUrl}`;
+
+    // 🟢 Message déjà présent → édition si nécessaire
     if (botMessage) {
-      if (!botMessage.content.includes(cleanFinalUrl)) {
-        await botMessage.edit(
-          `📢 **URL actuelle de Tirexo :** ${cleanFinalUrl}`
-        );
+      if (botMessage.content !== content) {
+        await botMessage.edit(content);
       }
       return;
     }
 
     // 🆕 Aucun message → création
-    await channel.send(
-      `📢 **URL actuelle de Tirexo :** ${cleanFinalUrl}`
-    );
+    await channel.send(content);
 
   } catch (err) {
     console.error("❌ Erreur check redirect:", err.message);
   }
 }
-
 
 // =======================
 // BOT READY
@@ -90,12 +73,13 @@ async function checkRedirect() {
 
 client.once("ready", () => {
   console.log(`✅ Bot connecté : ${client.user.tag}`);
+
   setTimeout(checkRedirect, 30_000);
   setInterval(checkRedirect, 6 * 60 * 60 * 1000);
 });
 
 // =======================
-// VOCAL NOTIFICATION
+// VOCAL NOTIFICATION (inchangé)
 // =======================
 
 client.on("voiceStateUpdate", async (oldState, newState) => {
