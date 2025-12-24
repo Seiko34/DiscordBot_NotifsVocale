@@ -15,7 +15,6 @@ const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
 
 // Fichier mémoire
 const URL_FILE = "./lastUrl.txt";
-const MSG_FILE = "./lastMessageId.txt";
 
 // =======================
 // DISCORD CLIENT
@@ -67,50 +66,29 @@ async function checkRedirect() {
 
     if (!finalUrl) return;
 
-    const cleanFinalUrl = finalUrl
-      .toLowerCase()
-      .replace(/\/$/, "");
+    const cleanFinalUrl = finalUrl.toLowerCase().replace(/\/$/, "");
 
-    const channel = await client.channels
-      .fetch(DISCORD_TIREXO_CHANNEL_ID)
-      .catch(() => null);
-
-    if (!channel) return;
-
-    // 🔎 CAS 0 — première exécution (aucune URL en mémoire)
-    if (!lastDetectedUrl) {
-      const msg = await channel.send(
-        `📢 **URL actuelle détectée :** ${cleanFinalUrl}`
-      );
-
-      lastDetectedUrl = cleanFinalUrl;
-      lastMessageId = msg.id;
-
-      fs.writeFileSync(URL_FILE, cleanFinalUrl, "utf8");
-      fs.writeFileSync(MSG_FILE, msg.id, "utf8");
-      return;
-    }
-
-    // 🟢 CAS 1 — URL identique → RIEN
+    // 🔴 Si l’URL n’a pas changé → on sort DIRECT
     if (cleanFinalUrl === lastDetectedUrl) return;
 
-    // 🔄 CAS 2 — URL différente → suppression + nouveau message
-    if (lastMessageId) {
-      const oldMsg = await channel.messages
-        .fetch(lastMessageId)
-        .catch(() => null);
-      if (oldMsg) await oldMsg.delete().catch(() => {});
+    const channel = await client.channels.fetch(DISCORD_TIREXO_CHANNEL_ID);
+
+    // 🔥 SUPPRESSION DE TOUS LES MESSAGES DU BOT
+    const messages = await channel.messages.fetch({ limit: 50 });
+    const botMessages = messages.filter(m => m.author.id === client.user.id);
+
+    for (const msg of botMessages.values()) {
+      await msg.delete().catch(() => {});
     }
 
-    const newMsg = await channel.send(
+    // ✨ Nouveau message UNIQUE
+    await channel.send(
       `📢 **Nouvelle URL détectée :** ${cleanFinalUrl}`
     );
 
+    // 💾 Mémoire fiable
     lastDetectedUrl = cleanFinalUrl;
-    lastMessageId = newMsg.id;
-
     fs.writeFileSync(URL_FILE, cleanFinalUrl, "utf8");
-    fs.writeFileSync(MSG_FILE, newMsg.id, "utf8");
 
   } catch (err) {
     console.error("❌ Erreur check redirect:", err.message);
