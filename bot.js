@@ -83,25 +83,37 @@ client.once("ready", () => {
 // =======================
 
 client.on("voiceStateUpdate", async (oldState, newState) => {
-  if (!oldState.channel && newState.channel) {
-    const channel = newState.channel;
-    const humanCount = channel.members.filter(m => !m.user.bot).size;
+  // Entrée dans un vocal uniquement
+  if (oldState.channel || !newState.channel) return;
 
-    if (humanCount === 1) {
-      const logChannel = await channel.guild.channels
-        .fetch(DISCORD_VOCAL_LOG_CHANNEL_ID)
-        .catch(() => null);
+  const channel = newState.channel;
 
-      if (!logChannel) return;
+  // Compter uniquement les humains
+  const humanCount = channel.members.filter(
+    m => !m.user.bot
+  ).size;
 
-      const msg = await logChannel.send(
-        `🔊 **Un vocal vient de commencer** : <#${channel.id}>`
-      );
+  // On notifie UNIQUEMENT quand le 1er humain arrive
+  if (humanCount !== 1) return;
 
-      setTimeout(() => {
-        msg.delete().catch(() => {});
-      }, 48 * 60 * 60 * 1000);
-    }
+  const logChannel = await channel.guild.channels
+    .fetch(DISCORD_VOCAL_LOG_CHANNEL_ID)
+    .catch(() => null);
+
+  if (!logChannel) return;
+
+  try {
+    const msg = await logChannel.send(
+      `🔊 **Un vocal vient de commencer** : ${channel}`
+    );
+
+    // Suppression auto après 48h
+    setTimeout(() => {
+      msg.delete().catch(() => {});
+    }, 48 * 60 * 60 * 1000);
+
+  } catch (err) {
+    console.error("❌ Erreur vocal:", err);
   }
 });
 
