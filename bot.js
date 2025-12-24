@@ -22,6 +22,7 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent,
   ],
 });
 
@@ -165,6 +166,30 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
   } catch (err) {
     console.error("❌ Erreur vocal:", err);
   }
+});
+
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
+  if (message.content !== "!refresh") return;
+
+  // Tirexo
+  if (message.channel.id === DISCORD_TIREXO_CHANNEL_ID) {
+    await message.reply("🔄 Rafraîchissement Tirexo en cours...");
+    await checkRedirectTirexo();
+    return;
+  }
+
+  // Movix
+  if (message.channel.id === DISCORD_MOVIX_CHANNEL_ID) {
+    await message.reply("🔄 Rafraîchissement Movix en cours...");
+    await checkRedirectMovix();
+    return;
+  }
+
+  // Mauvais salon
+  await message.reply(
+    "❌ Cette commande doit être utilisée dans le salon Tirexo ou Movix."
+  );
 });
 
 // =======================
