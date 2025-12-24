@@ -168,29 +168,43 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
   }
 });
 
+async function forceRefresh(channelId, checkFn) {
+  const channel = await client.channels.fetch(channelId);
+
+  // Supprimer les anciens messages du bot
+  const messages = await channel.messages.fetch({ limit: 20 });
+  const botMessages = messages.filter(
+    m => m.author.id === client.user.id
+  );
+
+  for (const msg of botMessages.values()) {
+    await msg.delete().catch(() => {});
+  }
+
+  // Refaire un check propre
+  await checkFn();
+}
+
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
   if (message.content !== "!refresh") return;
 
+  // Supprimer la commande
+  await message.delete().catch(() => {});
+
   // Tirexo
   if (message.channel.id === DISCORD_TIREXO_CHANNEL_ID) {
-    await message.reply("🔄 Rafraîchissement Tirexo en cours...");
-    await checkRedirectTirexo();
+    await forceRefresh(DISCORD_TIREXO_CHANNEL_ID, checkRedirectTirexo);
     return;
   }
 
   // Movix
   if (message.channel.id === DISCORD_MOVIX_CHANNEL_ID) {
-    await message.reply("🔄 Rafraîchissement Movix en cours...");
-    await checkRedirectMovix();
+    await forceRefresh(DISCORD_MOVIX_CHANNEL_ID, checkRedirectMovix);
     return;
   }
-
-  // Mauvais salon
-  await message.reply(
-    "❌ Cette commande doit être utilisée dans le salon Tirexo ou Movix."
-  );
 });
+
 
 // =======================
 // LOGIN
