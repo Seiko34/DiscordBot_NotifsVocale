@@ -135,8 +135,7 @@ client.once("ready", () => {
   cleanupOldMessages();
 
   // Une fois par jour
-  setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000);
-
+  setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000); 
 });
 
 // =======================
@@ -247,13 +246,22 @@ async function cleanupOldMessages() {
 
     const messages = await channel.messages.fetch({ limit: 100 });
 
-    for (const message of messages.values()) {
-      const age = now - message.createdTimestamp;
+  let deleted = 0; // compteur de suppressions
 
-      if (age > limitTime) {
-        await message.delete().catch(() => {});
-      }
-    }
+  for (const message of messages.values()) {
+    if (deleted >= 10) break; // ⛔ max 10 suppressions par passage
+
+    const age = now - message.createdTimestamp;
+
+    if (age > limitTime) {
+      await message.delete().catch(() => {});
+      deleted++;
+
+    // ⏳ pause 1 seconde entre chaque suppression
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+}
+
 
   } catch (err) {
     console.error("❌ Erreur cleanup messages:", err.message);
