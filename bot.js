@@ -23,8 +23,6 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessages,
   ],
 });
@@ -177,6 +175,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
   }
 });
 
+/*
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
   if (message.content !== "!refresh") return;
@@ -202,6 +201,7 @@ client.on("messageCreate", async (message) => {
     return;
   }
 });
+*/
 
 async function refreshWithStatus(channelId, checkFn, label) {
   const channel = await client.channels.fetch(channelId);
