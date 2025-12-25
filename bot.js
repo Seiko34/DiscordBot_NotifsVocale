@@ -1,6 +1,5 @@
 const { Client, GatewayIntentBits } = require("discord.js");
 const axios = require("axios");
-const express = require("express");
 
 // =======================
 // CONFIG
@@ -15,16 +14,14 @@ const DISCORD_MOVIX_CHANNEL_ID = "1453447650421506170";
 const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
 
 // =======================
-// DISCORD CLIENT (INTENTS COMPLETS)
+// DISCORD CLIENT
 // =======================
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
   ],
 });
 
@@ -46,21 +43,22 @@ async function checkRedirectTirexo() {
 
     if (!finalUrl) return;
 
-    const cleanUrl = finalUrl.toLowerCase().replace(/\/$/, "");
+    const cleanFinalUrl = finalUrl.toLowerCase().replace(/\/$/, "");
     const channel = await client.channels.fetch(DISCORD_TIREXO_CHANNEL_ID);
 
     const messages = await channel.messages.fetch({ limit: 10 });
     const botMessage = messages.find(m => m.author.id === client.user.id);
 
-    const content = `📢 **URL actuelle de Tirexo :** ${cleanUrl}`;
+    const content = `📢 **URL actuelle de Tirexo :** ${cleanFinalUrl}`;
 
     if (botMessage) {
       if (botMessage.content !== content) {
         await botMessage.edit(content);
       }
-    } else {
-      await channel.send(content);
+      return;
     }
+
+    await channel.send(content);
 
   } catch (err) {
     console.error("❌ Erreur Tirexo:", err.message);
@@ -85,21 +83,22 @@ async function checkRedirectMovix() {
 
     if (!finalUrl) return;
 
-    const cleanUrl = finalUrl.toLowerCase().replace(/\/$/, "");
+    const cleanFinalUrl = finalUrl.toLowerCase().replace(/\/$/, "");
     const channel = await client.channels.fetch(DISCORD_MOVIX_CHANNEL_ID);
 
     const messages = await channel.messages.fetch({ limit: 10 });
     const botMessage = messages.find(m => m.author.id === client.user.id);
 
-    const content = `🎬 **URL actuelle de Movix :** ${cleanUrl}`;
+    const content = `🎬 **URL actuelle de Movix :** ${cleanFinalUrl}`;
 
     if (botMessage) {
       if (botMessage.content !== content) {
         await botMessage.edit(content);
       }
-    } else {
-      await channel.send(content);
+      return;
     }
+
+    await channel.send(content);
 
   } catch (err) {
     console.error("❌ Erreur Movix:", err.message);
@@ -114,11 +113,11 @@ client.once("ready", () => {
   console.log(`✅ Bot connecté : ${client.user.tag}`);
 
   // Tirexo → toutes les 6h
-  setTimeout(checkRedirectTirexo, 30_000);
+  checkRedirectTirexo();
   setInterval(checkRedirectTirexo, 6 * 60 * 60 * 1000);
 
   // Movix → 1 fois par jour
-  setTimeout(checkRedirectMovix, 60_000);
+  checkRedirectMovix();
   setInterval(checkRedirectMovix, 24 * 60 * 60 * 1000);
 });
 
@@ -130,7 +129,10 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
   if (oldState.channel || !newState.channel) return;
 
   const channel = newState.channel;
-  const humanCount = channel.members.filter(m => !m.user.bot).size;
+
+  const humanCount = channel.members.filter(
+    m => !m.user.bot
+  ).size;
 
   if (humanCount !== 1) return;
 
@@ -141,36 +143,16 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
   if (!logChannel) return;
 
   try {
-    const msg = await logChannel.send(
+    await logChannel.send(
       `🔊 **Un vocal vient de commencer** : ${channel.name}`
     );
-
-    setTimeout(() => {
-      msg.delete().catch(() => {});
-    }, 48 * 60 * 60 * 1000);
-
   } catch (err) {
     console.error("❌ Erreur vocal:", err.message);
   }
 });
 
 // =======================
-// LOGIN DISCORD
+// LOGIN
 // =======================
 
 client.login(process.env.DISCORD_TOKEN);
-
-// =======================
-// FAKE HTTP (RENDER FREE)
-// =======================
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get("/", (req, res) => {
-  res.send("Bot Discord actif.");
-});
-
-app.listen(PORT, () => {
-  console.log(`🌐 HTTP server listening on port ${PORT}`);
-});
