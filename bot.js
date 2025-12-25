@@ -132,10 +132,10 @@ client.once("ready", () => {
   setInterval(checkRedirectMovix, 24 * 60 * 60 * 1000);
 
   // Nettoyage au démarrage
-  cleanupOldMessages();
+  //cleanupOldMessages();
 
   // Une fois par jour
-  setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000); 
+  //setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000); 
 });
 
 // =======================
@@ -246,7 +246,8 @@ async function cleanupOldMessages() {
 
     const messages = await channel.messages.fetch({ limit: 100 });
 
-  let deleted = 0; // compteur de suppressions
+  
+    let deleted = 0; // compteur de suppressions
 
   for (const message of messages.values()) {
     if (deleted >= 10) break; // ⛔ max 10 suppressions par passage
