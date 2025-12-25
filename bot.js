@@ -135,9 +135,7 @@ client.once("ready", () => {
   cleanupOldMessages();
 
   // Une fois par jour
-  //setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000);
-  setInterval(cleanupOldMessages, 60 * 1000);
-
+  setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000);
 
 });
 
