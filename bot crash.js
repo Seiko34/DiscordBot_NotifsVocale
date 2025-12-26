@@ -1,0 +1,42 @@
+const { Client, GatewayIntentBits } = require("discord.js");
+
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMembers
+    ]
+});
+
+client.once("ready", () => {
+    console.log(`✅ Bot connecté : ${client.user.tag}`);
+});
+
+client.on("voiceStateUpdate", (oldState, newState) => {
+
+    // uniquement quand quelqu’un ENTRE dans un vocal
+    if (!oldState.channel && newState.channel) {
+
+        const channel = newState.channel;
+
+        // humains uniquement
+        const humanCount = channel.members.filter(
+            member => !member.user.bot
+        ).size;
+
+        // vide → non vide
+        if (humanCount === 1) {
+            const textChannel = channel.guild.channels.cache.get("1450145620131053742");
+
+            if (textChannel) {
+                const link = `https://discord.com/channels/${channel.guild.id}/${channel.id}`;
+
+                textChannel.send(
+                    `🔊 **Un vocal vient de commencer** : <#${channel.id}>`
+                );
+            }
+        }
+    }
+});
+
+client.login(process.env.MTQ1MDE0MTAwMzE2NzMwNTgzOQ.GiM_fK.uGjdsDjIM3K8Q_NCeLwefY_7ZaqurgK5TQXfEw);

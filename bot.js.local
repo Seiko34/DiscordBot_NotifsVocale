@@ -1,0 +1,189 @@
+const { Client, GatewayIntentBits } = require("discord.js");
+const axios = require("axios");
+
+// =======================
+// CONFIG
+// =======================
+
+const CHECK_TIREXO_URL = "https://www.tirexo.fit/";
+const DISCORD_TIREXO_CHANNEL_ID = "1317225132019679372";
+
+const CHECK_MOVIX_URL = "https://movix.club/";
+const DISCORD_MOVIX_CHANNEL_ID = "1453447650421506170";
+
+const DISCORD_VOCAL_LOG_CHANNEL_ID = "1450145620131053742";
+const CLEANUP_POKEMMO_CHANNEL_ID = "1304579427467788329";
+
+// =======================
+// DISCORD CLIENT
+// =======================
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+});
+
+// =======================
+// UTILS
+// =======================
+
+async function getFinalUrl(url) {
+  const res = await axios.get(url, {
+    maxRedirects: 10,
+    timeout: 10000,
+    validateStatus: null,
+  });
+
+  return (
+    res.request?.res?.responseUrl ||
+    res.request?._redirectable?._currentUrl
+  );
+}
+
+async function updateUrlMessage(channelId, label, url) {
+  const channel = await client.channels.fetch(channelId);
+  const messages = await channel.messages.fetch({ limit: 10 });
+
+  const botMessage = messages.find(m => m.author.id === client.user.id);
+  const content = `📢 **URL actuelle de ${label} :** ${url}`;
+
+  if (botMessage) {
+    if (botMessage.content !== content) {
+      await botMessage.edit(content);
+    }
+  } else {
+    await channel.send(content);
+  }
+}
+
+// =======================
+// CHECK URLS
+// =======================
+
+async function checkTirexo() {
+  try {
+    const finalUrl = await getFinalUrl(CHECK_TIREXO_URL);
+    if (!finalUrl) return;
+
+    await updateUrlMessage(
+      DISCORD_TIREXO_CHANNEL_ID,
+      "Tirexo",
+      finalUrl.toLowerCase().replace(/\/$/, "")
+    );
+  } catch (err) {
+    console.error("❌ Tirexo:", err.message);
+  }
+}
+
+async function checkMovix() {
+  try {
+    const finalUrl = await getFinalUrl(CHECK_MOVIX_URL);
+    if (!finalUrl) return;
+
+    await updateUrlMessage(
+      DISCORD_MOVIX_CHANNEL_ID,
+      "Movix",
+      finalUrl.toLowerCase().replace(/\/$/, "")
+    );
+  } catch (err) {
+    console.error("❌ Movix:", err.message);
+  }
+}
+
+// =======================
+// VOCAL NOTIFICATION
+// =======================
+
+client.on("voiceStateUpdate", async (oldState, newState) => {
+  if (oldState.channel || !newState.channel) return;
+
+  const channel = newState.channel;
+  const humans = channel.members.filter(m => !m.user.bot).size;
+
+  if (humans !== 1) return;
+
+  const logChannel = await channel.guild.channels
+    .fetch(DISCORD_VOCAL_LOG_CHANNEL_ID)
+    .catch(() => null);
+
+  if (!logChannel) return;
+
+  const msg = await logChannel.send(
+    `🔊 **Un vocal vient de commencer** : ${channel.name}`
+  );
+
+  setTimeout(() => msg.delete().catch(() => {}), 48 * 60 * 60 * 1000);
+});
+
+// =======================
+// !REFRESH COMMAND
+// =======================
+
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
+  if (message.content !== "!refresh") return;
+
+  await message.delete().catch(() => {});
+
+  if (message.channel.id === DISCORD_TIREXO_CHANNEL_ID) {
+    await message.channel.send("⏳ **Vérification Tirexo en cours…**")
+      .then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
+    await checkTirexo();
+  }
+
+  if (message.channel.id === DISCORD_MOVIX_CHANNEL_ID) {
+    await message.channel.send("⏳ **Vérification Movix en cours…**")
+      .then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
+    await checkMovix();
+  }
+});
+
+// =======================
+// CLEANUP (1x / jour)
+// =======================
+
+async function cleanupOldMessages() {
+  try {
+    const channel = await client.channels.fetch(CLEANUP_POKEMMO_CHANNEL_ID);
+    if (!channel || !channel.isTextBased()) return;
+
+    const now = Date.now();
+    const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
+    const messages = await channel.messages.fetch({ limit: 100 });
+
+    for (const msg of messages.values()) {
+      if (now - msg.createdTimestamp > MAX_AGE) {
+        await msg.delete().catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.error("❌ Cleanup:", err.message);
+  }
+}
+
+// =======================
+// READY
+// =======================
+
+client.once("ready", () => {
+  console.log(`✅ Bot connecté : ${client.user.tag}`);
+
+  checkTirexo();
+  checkMovix();
+  cleanupOldMessages();
+
+  setInterval(checkTirexo, 6 * 60 * 60 * 1000);
+  setInterval(checkMovix, 24 * 60 * 60 * 1000);
+  setInterval(cleanupOldMessages, 24 * 60 * 60 * 1000);
+});
+
+// =======================
+// LOGIN
+// =======================
+
+client.login(process.env.MTQ1MDE0MTAwMzE2NzMwNTgzOQ.GiM_fK.uGjdsDjIM3K8Q_NCeLwefY_7ZaqurgK5TQXfEw);
